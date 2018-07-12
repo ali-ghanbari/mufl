@@ -1,9 +1,11 @@
 package org.mudebug.mufl;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -55,33 +57,45 @@ public class Driver {
             doStep("populating test case pool", () -> TestsPool.v().populate(allTests, originallyFailingTests));
             doStep("processing mutations", () -> loadMutations(mutations));
             doStep("ranking methods", () -> calcualteMethodRanks(coveredMethods = loadCoveredMethods(coveredMethodsFileName)));
-//            for (final Method meth : coveredMethods.stream().sorted((m1,m2) -> Double.compare(m2.getOldSusp(), m1.getOldSusp())).collect(Collectors.toList())) {
-//                System.out.println(meth.getFullName() + " " + meth.getOldSusp());
-//            }
-            doStep("loading buggy methods", () -> buggyMethodNames = loadBugMethods(bugMethodsFileName));
-            int top1 = 0;
-            int top3 = 0;
-            int top5 = 0;
-            for (final String methName : buggyMethodNames) {
-                final Method meth = MethodsPool.v().getMethodByName(methName);
-                if (meth == null) {
-                    System.out.println("not found" + methName + " in " + progName + "-" + progVer);
-                } else {
-//                    System.out.println(String.format("%s %d", meth.getFullName(), meth.getRank()));
-                    final int rank = meth.getRank();
-                    if (rank == 1) {
-                        top1++;
-                        top3++;
-                        top5++;
-                    } else if (rank <= 3) {
-                        top3++;
-                        top5++;
-                    } else if (rank <= 5) {
-                        top5++;
-                    }
+                
+            
+            try {
+                final File base = FileUtils.getFile(progName, Integer.toString(progVer));
+                base.mkdirs();
+                final File outFile = new File(base, Config.LEVEL.getFileName());
+                final PrintWriter pw = new PrintWriter(outFile);
+                for (final Method meth : coveredMethods.stream().sorted((m1,m2) -> Double.compare(m2.getOldSusp(), m1.getOldSusp())).collect(Collectors.toList())) {
+                    pw.println(meth.getFullName() + " " + meth.getOldSusp());
                 }
+                pw.close();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            System.out.println(String.format("%s,%d,%d,%d,%d", progName, progVer, top1, top3, top5));
+            
+//            doStep("loading buggy methods", () -> buggyMethodNames = loadBugMethods(bugMethodsFileName));
+//            int top1 = 0;
+//            int top3 = 0;
+//            int top5 = 0;
+//            for (final String methName : buggyMethodNames) {
+//                final Method meth = MethodsPool.v().getMethodByName(methName);
+//                if (meth == null) {
+//                    System.out.println("not found" + methName + " in " + progName + "-" + progVer);
+//                } else {
+////                    System.out.println(String.format("%s %d", meth.getFullName(), meth.getRank()));
+//                    final int rank = meth.getRank();
+//                    if (rank == 1) {
+//                        top1++;
+//                        top3++;
+//                        top5++;
+//                    } else if (rank <= 3) {
+//                        top3++;
+//                        top5++;
+//                    } else if (rank <= 5) {
+//                        top5++;
+//                    }
+//                }
+//            }
+//            System.out.println(String.format("%s,%d,%d,%d,%d", progName, progVer, top1, top3, top5));
         }
     }
     
@@ -199,6 +213,12 @@ public class Driver {
                             }
                         }
                     }
+                }
+            }
+            for (final TestCase ft : TestsPool.v().getFailingTests()) {
+                if (mutation.isCoveredBy(ft) && !mutation.getKillingTests().contains(ft)) {
+                    ft.addInfluencer(mutation);
+                    mutation.addFailingImpact((FailingTest) ft);
                 }
             }
         } catch (Exception e) {

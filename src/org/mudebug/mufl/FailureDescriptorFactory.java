@@ -5,8 +5,8 @@ import java.util.List;
 public enum FailureDescriptorFactory {
     KIND("Ochiaitype1.txt"),
     TYPE("Ochiaitype2.txt"),
-    TYPE_MESSAGE("Ochiaitype1.txt"),
-    FULL("Ochiaitype1.txt");
+    TYPE_MESSAGE("Ochiaitype3.txt"),
+    FULL("Ochiaitype4.txt");
     
     private final String fileName;
     
