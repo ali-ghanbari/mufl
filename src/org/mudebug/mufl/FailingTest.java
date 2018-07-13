@@ -16,4 +16,15 @@ public final class FailingTest extends TestCase {
     public FailureDescription getFailureDescription() {
         return failureDesc;
     }
+
+    @Override
+    public void computeInfluencers() {
+        for (final Mutation mutation : cover) {
+            final FailureDescription fd = mutation.getFailureDetails(this);
+            if (fd == null || !fd.equals(failureDesc)) {
+                addInfluencer(mutation);
+                mutation.addFailingImpact(this);
+            }
+        }
+    }
 }

@@ -28,6 +28,11 @@ public final class TestsPool {
         return instance;
     }
     
+    public void computeInfluencer() {
+        passingTests.values().forEach(PassingTest::computeInfluencers);
+        failingTests.values().forEach(FailingTest::computeInfluencers);
+    }
+    
     public int sizeOfFailingTests() {
         return failingTests.size();
     }
@@ -68,10 +73,11 @@ public final class TestsPool {
                         final String[] parts = failureDetails.split("\\s\\[STACKTRACE\\]\\s");
                         final List<String> trace = Arrays.asList(parts[1].split("\\s"));
                         rawInfo.put(qualifiedName, new ImmutablePair<>(parts[0], trace));
-                    } else {
-                        final PassingTest passingTest = TestCaseFactory.createPassingTestCase(qualifiedName);
-                        passingTests.put(qualifiedName, passingTest);
                     }
+//                    } else {
+//                        final PassingTest passingTest = TestCaseFactory.createPassingTestCase(qualifiedName);
+//                        passingTests.put(qualifiedName, passingTest);
+//                    }
                 }
             }
         } catch (Exception e) {

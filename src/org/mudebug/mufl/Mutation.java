@@ -1,29 +1,32 @@
 package org.mudebug.mufl;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Mutation {
     private final Method mutatedMethod;
     private FailingTest[] failingImpacts;
     private PassingTest[] passingImpacts;
-    private final Set<TestCase> coveringTests;
-    private final Set<TestCase> killingTests;
+    private final Map<String, FailureDescription> failureDetails;
 
-    public Mutation(Method mutatedMethod, Set<TestCase> coveringTests) {
+    public Mutation(Method mutatedMethod) {
         this.mutatedMethod = mutatedMethod;
         this.failingImpacts = new FailingTest[0];
         this.passingImpacts = new PassingTest[0];
-        this.coveringTests = coveringTests;
-        this.killingTests = new HashSet<>();
+        this.failureDetails = new HashMap<>();
     }
     
-    public void addKillingTests(TestCase tc) {
-        this.killingTests.add(tc);
+    public void addKillingTest(final String qualifiedName, final FailureDescription desc) {
+        failureDetails.put(qualifiedName, desc);
     }
     
-    public boolean isCoveredBy(TestCase ft) {
-        return coveringTests.contains(ft);
+    public boolean doesKill(final TestCase t) {
+        return failureDetails.containsKey(t.getQualifiedName());
+    }
+    
+    public FailureDescription getFailureDetails(final TestCase t) {
+        return failureDetails.get(t.getQualifiedName());
     }
 
     public Method getMutatedMethod() {
@@ -63,8 +66,16 @@ public class Mutation {
         final double denom = Math.sqrt(((double) tfe + (double) tpe) * (double) tf);
         return num / denom;
     }
-
-    public Set<TestCase> getKillingTests() {
-        return killingTests;
+    
+    public double getNewSusp() {
+        final double tfe = Arrays.stream(failingImpacts).mapToDouble(TestCase::getWeight).sum();
+        final double tpe = Arrays.stream(passingImpacts).mapToDouble(TestCase::getWeight).sum();
+        if (tfe > 0.D || tpe > 0.D) {
+            final double tf = TestsPool.v().getFailingTests().stream().mapToDouble(TestCase::getWeight).sum();
+            final double num = tfe;
+            final double denom = Math.sqrt((tfe + tpe) * tf);
+            return num / denom;
+        }
+        return 0;
     }
 }

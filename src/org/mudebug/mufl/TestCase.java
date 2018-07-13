@@ -4,18 +4,23 @@ public abstract class TestCase {
     protected final String declaringClass;
     protected final String testName;
     protected Mutation[] influencers;
+    protected Mutation[] cover;
+    
+    public abstract void computeInfluencers();
     
     protected TestCase(String qualifiedName) {
         final int lastDot = qualifiedName.lastIndexOf('.');
         this.declaringClass = qualifiedName.substring(0, lastDot);
         this.testName = qualifiedName.substring(1 + lastDot);
         this.influencers = new Mutation[0];
+        this.cover = new Mutation[0];
     }
     
     protected TestCase(String declaringClass, String testName) {
         this.declaringClass = declaringClass;
         this.testName = testName;
         this.influencers = new Mutation[0];
+        this.cover = new Mutation[0];
     }
     
     public void addInfluencer(final Mutation mutation) {
@@ -25,6 +30,13 @@ public abstract class TestCase {
         this.influencers = influencersExt;
     }
     
+    public void addCover(final Mutation mutation) {
+        Mutation[] coverExt = new Mutation[cover.length + 1];
+        System.arraycopy(cover, 0, coverExt, 0, cover.length);
+        coverExt[cover.length] = mutation;
+        this.cover = coverExt;
+    }
+    
     public boolean equals(String declaringClass, String testName) {
         return declaringClass.equals(this.declaringClass)
                 && testName.equals(this.testName);
@@ -32,6 +44,13 @@ public abstract class TestCase {
     
     public String getQualifiedName() {
         return String.format("%s.%s", declaringClass, testName);
+    }
+    
+    public double getWeight() {
+        if (influencers.length == 0) {
+            return 0;
+        }
+        return 1.D / (double) influencers.length;
     }
 
     @Override
@@ -83,4 +102,5 @@ public abstract class TestCase {
     public Mutation[] getInfluencers() {
         return influencers;
     }
+
 }

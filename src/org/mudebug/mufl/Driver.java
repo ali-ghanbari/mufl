@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -19,7 +18,6 @@ import java.util.zip.GZIPInputStream;
 import org.apache.commons.io.FileUtils;
 
 public class Driver {
-    private static Set<Method> coveredMethods;
     private static Set<String> buggyMethodNames;
     
     public static void main(String[] args) {
@@ -54,48 +52,54 @@ public class Driver {
                     progName,
                     Integer.toString(progVer),
                     Config.LEVEL.getFileName()).getAbsolutePath();
+            final File allMethodsFile = FileUtils.getFile(dynamicInfoBasePath,
+                    "AllMethods",
+                    progName,
+                    String.format("%d.txt", progVer));
             doStep("populating test case pool", () -> TestsPool.v().populate(allTests, originallyFailingTests));
+            doStep("populating methods pool", () -> MethodsPool.v().populate(allMethodsFile));
             doStep("processing mutations", () -> loadMutations(mutations));
-            doStep("ranking methods", () -> calcualteMethodRanks(coveredMethods = loadCoveredMethods(coveredMethodsFileName)));
+            TestsPool.v().computeInfluencer();
+            doStep("ranking methods", () -> calcualteMethodRanks(loadCoveredMethods(coveredMethodsFileName)));
                 
             
-            try {
-                final File base = FileUtils.getFile(progName, Integer.toString(progVer));
-                base.mkdirs();
-                final File outFile = new File(base, Config.LEVEL.getFileName());
-                final PrintWriter pw = new PrintWriter(outFile);
-                for (final Method meth : coveredMethods.stream().sorted((m1,m2) -> Double.compare(m2.getOldSusp(), m1.getOldSusp())).collect(Collectors.toList())) {
-                    pw.println(meth.getFullName() + " " + meth.getOldSusp());
-                }
-                pw.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            
-//            doStep("loading buggy methods", () -> buggyMethodNames = loadBugMethods(bugMethodsFileName));
-//            int top1 = 0;
-//            int top3 = 0;
-//            int top5 = 0;
-//            for (final String methName : buggyMethodNames) {
-//                final Method meth = MethodsPool.v().getMethodByName(methName);
-//                if (meth == null) {
-//                    System.out.println("not found" + methName + " in " + progName + "-" + progVer);
-//                } else {
-////                    System.out.println(String.format("%s %d", meth.getFullName(), meth.getRank()));
-//                    final int rank = meth.getRank();
-//                    if (rank == 1) {
-//                        top1++;
-//                        top3++;
-//                        top5++;
-//                    } else if (rank <= 3) {
-//                        top3++;
-//                        top5++;
-//                    } else if (rank <= 5) {
-//                        top5++;
-//                    }
+//            try {
+//                final File base = FileUtils.getFile(progName, Integer.toString(progVer));
+//                base.mkdirs();
+//                final File outFile = new File(base, Config.LEVEL.getFileName());
+//                final PrintWriter pw = new PrintWriter(outFile);
+//                for (final Method meth : coveredMethods.stream().sorted((m1,m2) -> Double.compare(m2.getOldSusp(), m1.getOldSusp())).collect(Collectors.toList())) {
+//                    pw.println(meth.getFullName() + " " + meth.getOldSusp());
 //                }
+//                pw.close();
+//            } catch (Exception e) {
+//                e.printStackTrace();
 //            }
-//            System.out.println(String.format("%s,%d,%d,%d,%d", progName, progVer, top1, top3, top5));
+            
+            doStep("loading buggy methods", () -> buggyMethodNames = loadBugMethods(bugMethodsFileName));
+            int top1 = 0;
+            int top3 = 0;
+            int top5 = 0;
+            for (final String methName : buggyMethodNames) {
+                final Method meth = MethodsPool.v().getMethodByName(methName);
+                if (meth == null) {
+                    System.out.println("not found" + methName + " in " + progName + "-" + progVer);
+                } else {
+//                    System.out.println(String.format("%s %d", meth.getFullName(), meth.getRank()));
+                    final int rank = meth.getRank();
+                    if (rank == 1) {
+                        top1++;
+                        top3++;
+                        top5++;
+                    } else if (rank <= 3) {
+                        top3++;
+                        top5++;
+                    } else if (rank <= 5) {
+                        top5++;
+                    }
+                }
+            }
+            System.out.println(String.format("%s,%d,%d,%d,%d", progName, progVer, top1, top3, top5));
         }
     }
     
@@ -151,74 +155,73 @@ public class Driver {
         }
     }
     
+    private static boolean isPraPRMutator(final String mutatorName) {
+        return mutatorName.startsWith("org.mudebug");
+    }
+    
     private static void loadMutations(final String mutations) {
         try (GZIPInputStream gzis = new GZIPInputStream(new FileInputStream(mutations))) {
             final BufferedReader br = new BufferedReader(new InputStreamReader(gzis));
             String line;
             Mutation mutation = null;
+            Set<TestCase> coveringTests = null;
             while((line = br.readLine()) != null) {
                 line = line.trim();
                 if (line.equals("------ MUTATION")) {
-                    if (mutation != null) {
-                        for (final TestCase ft : TestsPool.v().getFailingTests()) {
-                            if (mutation.isCoveredBy(ft) && !mutation.getKillingTests().contains(ft)) {
-                                ft.addInfluencer(mutation);
-                                mutation.addFailingImpact((FailingTest) ft);
-                            }
-                        }
-                    }
                     br.readLine(); // mutated file name
                     br.readLine(); // mutated line number
                     final String mutatedClass = br.readLine();
                     final String mutatedMethodName = br.readLine();
                     final String mutatedMethodDesc = br.readLine();
-                    br.readLine(); // mutator name
-                    br.readLine(); // mutator description
-                    final Set<TestCase> coveringTests = new HashSet<>(); 
-                    while (!(line = br.readLine()).equals("------")) {
-                        line = line.trim();
-                        final String qualifiedName = line.substring(0, line.indexOf('('));
-                        final TestCase coveringTest = TestsPool.v().getTestByName(qualifiedName);
-                        coveringTests.add(coveringTest);
-                    }
-                    Method mutatedMethod = MethodsPool.v().getMethodByName(String.format("%s.%s%s", mutatedClass, mutatedMethodName, mutatedMethodDesc));
-                    if (mutatedMethod == null) {
-                        mutatedMethod = new Method(mutatedClass, mutatedMethodName, mutatedMethodDesc);
-                    }
-                    mutation = new Mutation(mutatedMethod, coveringTests);
-                    mutatedMethod.addMutation(mutation);
-                    MethodsPool.v().addToPool(mutatedMethod);
-                } else if (line.equals("------ FAILURE")) {
-                    line = br.readLine().trim();
-                    final String killingTestName = line.substring(0, line.indexOf('('));
-                    final String firstLine = br.readLine().trim();
-                    final ArrayList<String> trace = new ArrayList<>();
-                    while (!(line = br.readLine()).equals("------")) {
-                        line = line.trim();
-                        trace.add(line);
-                    }
-                    trace.trimToSize();
-                    final TestCase killingTest = TestsPool.v().getTestByName(killingTestName);
-                    if (killingTest != null) {
-                        mutation.addKillingTests(killingTest);
-                        if (killingTest instanceof PassingTest) { // killing test used to be a passing test
-                            killingTest.addInfluencer(mutation);
-                            mutation.addPassingImpact((PassingTest) killingTest);
-                        } else { // killing test used to be a failing test
-                            final FailureDescription fd = 
-                                    FailureDescriptorFactory.createFailureDescription(Config.LEVEL, firstLine, trace);
-                            if (!((FailingTest) killingTest).getFailureDescription().equals(fd)) {
-                                killingTest.addInfluencer(mutation);
-                                mutation.addFailingImpact((FailingTest) killingTest);
+                    final String mutatorName = br.readLine(); // mutator name
+                    if (isPraPRMutator(mutatorName)) {
+                        mutation = null;
+                        while (!br.readLine().equals("------"));
+                    } else {
+                        br.readLine(); // mutator description
+                        coveringTests = new HashSet<>(); 
+                        while (!(line = br.readLine()).equals("------")) {
+                            line = line.trim();
+                            final String qualifiedName = line.substring(0, line.indexOf('('));
+                            final TestCase coveringTest = TestsPool.v().getTestByName(qualifiedName);
+                            coveringTests.add(coveringTest);
+                        }
+                        Method mutatedMethod = MethodsPool.v().getMethodByName(String.format("%s.%s%s", mutatedClass, mutatedMethodName, mutatedMethodDesc));
+                        if (mutatedMethod != null) {
+                            mutation = new Mutation(mutatedMethod);
+                            mutatedMethod.addMutation(mutation);
+                            for (final TestCase t : coveringTests) {
+                                t.addCover(mutation);
                             }
+                        } else {
+                            mutation = null;
                         }
                     }
-                }
-            }
-            for (final TestCase ft : TestsPool.v().getFailingTests()) {
-                if (mutation.isCoveredBy(ft) && !mutation.getKillingTests().contains(ft)) {
-                    ft.addInfluencer(mutation);
-                    mutation.addFailingImpact((FailingTest) ft);
+                } else if (line.equals("------ FAILURE")) {
+                    if (mutation == null) {
+                        while (!br.readLine().equals("------")); // skip the failure
+                    } else {
+                        line = br.readLine().trim();
+                        final String killingTestName = line.substring(0, line.indexOf('('));
+                        final String firstLine = br.readLine().trim();
+                        final ArrayList<String> trace = new ArrayList<>();
+                        while (!(line = br.readLine()).equals("------")) {
+                            line = line.trim();
+                            trace.add(line);
+                        }
+                        trace.trimToSize();
+                        final TestCase killingTest = TestsPool.v().getTestByName(killingTestName);
+                        if (killingTest != null) {
+                            assert(coveringTests.contains(killingTest));
+                            final FailureDescription fd = 
+                                    FailureDescriptorFactory.createFailureDescription(Config.LEVEL, firstLine, trace);
+                            mutation.addKillingTest(killingTestName, fd);
+                        }
+                    }
+                } else if (line.equals("------ STATUS")) {
+                    while (!br.readLine().equals("------")); // skip detection status
+                } else {
+                    throw new RuntimeException(line);
                 }
             }
         } catch (Exception e) {

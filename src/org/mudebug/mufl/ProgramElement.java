@@ -5,6 +5,8 @@ public abstract class ProgramElement {
     
     public abstract double getOldSusp(); 
     
+    public abstract double getNewSusp(); 
+    
     protected ProgramElement() {
         this.mutations = new Mutation[0];
     }
