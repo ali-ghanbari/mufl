@@ -85,12 +85,12 @@ public class Method extends ProgramElement {
     
     @Override
     public double getOldSusp() {
-        return Arrays.stream(this.mutations).map(Mutation::getOldSusp).max(Double::compareTo).orElse(0D);
+        return Arrays.stream(this.mutations).mapToDouble(Mutation::getOldSusp).max().orElse(0D);
     }
     
     @Override
     public double getNewSusp() {
-        return Arrays.stream(this.mutations).map(Mutation::getNewSusp).max(Double::compareTo).orElse(0D);
+        return Arrays.stream(this.mutations).mapToDouble(Mutation::getNewSusp).max().orElse(0D);
     }
 
     public int getRank() {

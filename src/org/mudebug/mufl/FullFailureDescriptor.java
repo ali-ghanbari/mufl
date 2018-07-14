@@ -12,7 +12,7 @@ public final class FullFailureDescriptor extends FailureDescription {
         final int afterAt = 3;
         final String stackTrace = trace.stream()
             .map(String::trim)
-            .map(s -> s.substring(afterAt))
+            .map(s -> s.startsWith("at ") ? s.substring(afterAt) : s)
             .filter(s -> s.startsWith(Config.GROUP_ID))
             .collect(Collectors.joining(","));
         return firstLine + " : " + stackTrace;

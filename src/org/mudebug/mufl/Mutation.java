@@ -56,15 +56,13 @@ public class Mutation {
     }
     
     public double getOldSusp() {
-        final int tfe = getSizeOfFailingImpacts();
-        final int tpe = getSizeOfPassingImpacts();
-        if (tfe == 0 && tpe == 0) {
-            return 0D;
+        final double tfe = getSizeOfFailingImpacts();
+        final double tpe = getSizeOfPassingImpacts();
+        if (tfe > 0 || tpe > 0) {
+            final double tf = TestsPool.v().sizeOfFailingTests();
+            return tfe / Math.sqrt((tfe + tpe) * tf);
         }
-        final int tf = TestsPool.v().sizeOfFailingTests();
-        final double num = (double) tfe; 
-        final double denom = Math.sqrt(((double) tfe + (double) tpe) * (double) tf);
-        return num / denom;
+        return 0;
     }
     
     public double getNewSusp() {
@@ -72,9 +70,7 @@ public class Mutation {
         final double tpe = Arrays.stream(passingImpacts).mapToDouble(TestCase::getWeight).sum();
         if (tfe > 0.D || tpe > 0.D) {
             final double tf = TestsPool.v().getFailingTests().stream().mapToDouble(TestCase::getWeight).sum();
-            final double num = tfe;
-            final double denom = Math.sqrt((tfe + tpe) * tf);
-            return num / denom;
+            return tfe / Math.sqrt((tfe + tpe) * tf);
         }
         return 0;
     }

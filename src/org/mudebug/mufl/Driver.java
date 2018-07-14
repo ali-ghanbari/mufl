@@ -26,57 +26,48 @@ public class Driver {
         final String programsBasePath = args[2];
         final String dynamicInfoBasePath = args[3];
         
+        double mar = 0;
+        
         for (int progVer = 1; progVer <= verCount; progVer++) {
-            //System.out.println(String.format("processing version %d of %s...", progVer, progName));
-            final String allTests = FileUtils.getFile(dynamicInfoBasePath,
+            final File allTests = FileUtils.getFile(dynamicInfoBasePath,
                     "MutationData",
                     progName,
                     "coverage-test",
-                    String.format("%d.txt", progVer)).getAbsolutePath();
-            final String originallyFailingTests = FileUtils.getFile(dynamicInfoBasePath,
+                    String.format("%d.txt", progVer));
+            final File originallyFailingTests = FileUtils.getFile(dynamicInfoBasePath,
                     "FailingTests",
                     progName,
-                    String.format("%d.txt", progVer)).getAbsolutePath();
-            final String mutations = FileUtils.getFile(programsBasePath,
+                    String.format("%d.txt", progVer));
+            final File mutations = FileUtils.getFile(programsBasePath,
                     progName,
                     Integer.toString(progVer),
                     "target",
                     "simpr-reports",
-                    "mutations.gz").getAbsolutePath();
-            final String bugMethodsFileName = FileUtils.getFile(dynamicInfoBasePath,
+                    "mutations.gz");
+            final File bugMethodsFileName = FileUtils.getFile(dynamicInfoBasePath,
                     "BugMethod",
                     progName,
-                    String.format("%d.txt", progVer)).getAbsolutePath();
-            final String coveredMethodsFileName = FileUtils.getFile(dynamicInfoBasePath,
+                    String.format("%d.txt", progVer));
+            final File coveredMethodsFileName = FileUtils.getFile(dynamicInfoBasePath,
                     "xias-susp-vals",
                     progName,
                     Integer.toString(progVer),
-                    Config.LEVEL.getFileName()).getAbsolutePath();
+                    Config.LEVEL.getFileName());
             final File allMethodsFile = FileUtils.getFile(dynamicInfoBasePath,
                     "AllMethods",
                     progName,
                     String.format("%d.txt", progVer));
+            TestsPool.v().clear();
+            MethodsPool.v().clear();
             doStep("populating test case pool", () -> TestsPool.v().populate(allTests, originallyFailingTests));
             doStep("populating methods pool", () -> MethodsPool.v().populate(allMethodsFile));
             doStep("processing mutations", () -> loadMutations(mutations));
             TestsPool.v().computeInfluencer();
             doStep("ranking methods", () -> calcualteMethodRanks(loadCoveredMethods(coveredMethodsFileName)));
-                
-            
-//            try {
-//                final File base = FileUtils.getFile(progName, Integer.toString(progVer));
-//                base.mkdirs();
-//                final File outFile = new File(base, Config.LEVEL.getFileName());
-//                final PrintWriter pw = new PrintWriter(outFile);
-//                for (final Method meth : coveredMethods.stream().sorted((m1,m2) -> Double.compare(m2.getOldSusp(), m1.getOldSusp())).collect(Collectors.toList())) {
-//                    pw.println(meth.getFullName() + " " + meth.getOldSusp());
-//                }
-//                pw.close();
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-            
             doStep("loading buggy methods", () -> buggyMethodNames = loadBugMethods(bugMethodsFileName));
+            
+            double inner_mean = 0;
+            
             int top1 = 0;
             int top3 = 0;
             int top5 = 0;
@@ -85,8 +76,8 @@ public class Driver {
                 if (meth == null) {
                     System.out.println("not found" + methName + " in " + progName + "-" + progVer);
                 } else {
-//                    System.out.println(String.format("%s %d", meth.getFullName(), meth.getRank()));
                     final int rank = meth.getRank();
+                    inner_mean += rank;
                     if (rank == 1) {
                         top1++;
                         top3++;
@@ -99,8 +90,16 @@ public class Driver {
                     }
                 }
             }
+            
+            inner_mean /= buggyMethodNames.size() > 0 ? buggyMethodNames.size() : 1;
+            
+            mar += inner_mean;
+            
             System.out.println(String.format("%s,%d,%d,%d,%d", progName, progVer, top1, top3, top5));
         }
+        
+        System.out.println(String.format("MAR = %f", mar / verCount));
+        
     }
     
     private static void doStep(String message, Runnable r) {
@@ -111,7 +110,7 @@ public class Driver {
     
     public static void calcualteMethodRanks(final Set<Method> coveredMethods) {
         final List<List<Method>> groups = coveredMethods.stream()
-            .collect(Collectors.groupingBy(Method::getOldSusp))
+            .collect(Collectors.groupingBy(Config.SUSP_FUNCTION))
             .entrySet().stream()
             .sorted((e1, e2) -> Double.compare(e2.getKey(), e1.getKey()))
             .map(Map.Entry::getValue)
@@ -125,7 +124,7 @@ public class Driver {
         }
     }
     
-    private static Set<Method> loadCoveredMethods(final String coveredMethodsFileName) {
+    private static Set<Method> loadCoveredMethods(final File coveredMethodsFileName) {
         try (BufferedReader br = new BufferedReader(new FileReader(coveredMethodsFileName))) {
             return br.lines()
                     .map(String::trim)
@@ -141,7 +140,7 @@ public class Driver {
         }
     }
     
-    private static Set<String> loadBugMethods(final String bugMethodsFileName) {
+    private static Set<String> loadBugMethods(final File bugMethodsFileName) {
         try (BufferedReader br = new BufferedReader(new FileReader(bugMethodsFileName))) {
            return br.lines()
                    .map(String::trim)
@@ -155,11 +154,11 @@ public class Driver {
         }
     }
     
-    private static boolean isPraPRMutator(final String mutatorName) {
-        return mutatorName.startsWith("org.mudebug");
+    private static boolean isPITMutator(final String mutatorName) {
+        return true; //mutatorName.startsWith("org.pitest");
     }
     
-    private static void loadMutations(final String mutations) {
+    private static void loadMutations(final File mutations) {
         try (GZIPInputStream gzis = new GZIPInputStream(new FileInputStream(mutations))) {
             final BufferedReader br = new BufferedReader(new InputStreamReader(gzis));
             String line;
@@ -174,12 +173,9 @@ public class Driver {
                     final String mutatedMethodName = br.readLine();
                     final String mutatedMethodDesc = br.readLine();
                     final String mutatorName = br.readLine(); // mutator name
-                    if (isPraPRMutator(mutatorName)) {
-                        mutation = null;
-                        while (!br.readLine().equals("------"));
-                    } else {
+                    if (isPITMutator(mutatorName)) {
                         br.readLine(); // mutator description
-                        coveringTests = new HashSet<>(); 
+                        coveringTests = new HashSet<>();
                         while (!(line = br.readLine()).equals("------")) {
                             line = line.trim();
                             final String qualifiedName = line.substring(0, line.indexOf('('));
@@ -196,6 +192,9 @@ public class Driver {
                         } else {
                             mutation = null;
                         }
+                    } else {
+                        mutation = null;
+                        while (!br.readLine().equals("------"));
                     }
                 } else if (line.equals("------ FAILURE")) {
                     if (mutation == null) {

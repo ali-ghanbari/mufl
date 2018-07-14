@@ -1,6 +1,7 @@
 package org.mudebug.mufl;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.util.Arrays;
 import java.util.Collection;
@@ -26,6 +27,11 @@ public final class TestsPool {
             instance = new TestsPool();
         }
         return instance;
+    }
+    
+    public void clear() {
+        passingTests.clear();
+        failingTests.clear();
     }
     
     public void computeInfluencer() {
@@ -58,7 +64,7 @@ public final class TestsPool {
         return getTestByName(String.format("%s.%s", declaringClass, testName));
     }
     
-    public void populate(final String allTests, final String originallyFailingTests) {
+    public void populate(final File allTests, final File originallyFailingTests) {
         final Map<String, Pair<String, List<String>>> rawInfo = new HashMap<>();
         try (BufferedReader br = new BufferedReader(new FileReader(allTests))) {
             String line;

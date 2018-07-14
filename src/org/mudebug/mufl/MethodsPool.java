@@ -21,6 +21,10 @@ public final class MethodsPool {
         return instance;
     }
     
+    public void clear() {
+        pool.clear();
+    }
+    
     public Method getMethodByName(final String fullName) {
         return pool.get(fullName);
     }
