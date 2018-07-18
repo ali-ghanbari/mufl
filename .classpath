@@ -8,5 +8,6 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="lib" path="/Users/alighanbari/eclipse-workspace/mufl/lib/commons-lang3-3.7.jar"/>
 	<classpathentry kind="lib" path="/Users/alighanbari/eclipse-workspace/mufl/lib/commons-io-2.6.jar"/>
+	<classpathentry kind="lib" path="/Users/alighanbari/eclipse-workspace/mufl/lib/commons-math3-3.6.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -6,14 +6,12 @@ public class Method extends ProgramElement {
     private final String declaringClass;
     private final String name;
     private final String desc;
-    private int rank;
 
     public Method(final String declaringClass, final String name, final String descriptor) {
         super();
         this.declaringClass = declaringClass;
         this.name = name;
         this.desc = descriptor;
-        this.rank = 0;
     }
     
     public String getFullName() {
@@ -84,20 +82,12 @@ public class Method extends ProgramElement {
     }
     
     @Override
-    public double getOldSusp() {
-        return Arrays.stream(this.mutations).mapToDouble(Mutation::getOldSusp).max().orElse(0D);
+    public double getSusp(SuspTech which) {
+        return Arrays.stream(this.mutations).mapToDouble(which.suspFunc).max().orElse(0D);
     }
     
     @Override
-    public double getNewSusp() {
-        return Arrays.stream(this.mutations).mapToDouble(Mutation::getNewSusp).max().orElse(0D);
-    }
-
-    public int getRank() {
-        return rank;
-    }
-
-    public void setRank(int rank) {
-        this.rank = rank;
+    public double getTestDistinguishingOchiaiSusp() {
+        return Arrays.stream(this.mutations).mapToDouble(Mutation::getTestDistinguishingOchiaiSusp).max().orElse(0D);
     }
 }
