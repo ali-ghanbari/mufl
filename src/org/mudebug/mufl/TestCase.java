@@ -103,4 +103,8 @@ public abstract class TestCase {
         return influencers;
     }
 
+    public Mutation[] getCover() {
+        return cover;
+    }
+
 }

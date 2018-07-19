@@ -6,13 +6,14 @@ import java.io.FileReader;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
-public final class TestsPool {
+public final class TestsPool implements Iterable<TestCase> {
     private static TestsPool instance = null;
     private final Map<String, PassingTest> passingTests;
     private final Map<String, FailingTest> failingTests;
@@ -115,5 +116,31 @@ public final class TestsPool {
 
     public Collection<? extends TestCase> getFailingTests() {
         return failingTests.values();
+    }
+
+    @Override
+    public Iterator<TestCase> iterator() {
+        return new Iterator<TestCase>() {
+            private final Iterator<FailingTest> it1 = TestsPool.this.failingTests.values().iterator();
+            private final Iterator<PassingTest> it2 = TestsPool.this.passingTests.values().iterator();
+            
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public boolean hasNext() {
+                return it1.hasNext() || it2.hasNext();
+            }
+
+            @Override
+            public TestCase next() {
+                if (it1.hasNext()) {
+                    return it1.next();
+                }
+                return it2.next();
+            }
+        };
     }
 }

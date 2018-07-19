@@ -7,16 +7,29 @@ import java.util.Map;
 import java.util.Set;
 
 public class Mutation {
-    private final Method mutatedMethod;
+    private final String fileName;
+    private final int lineNumber;
+    private final String mutatedClassName;
+    private final String mutatedMethodName;
+    private final String mutatedMethodDesc;
+    private final int index;
+    private final String mutatorName;
     private FailingTest[] failingImpacts;
     private PassingTest[] passingImpacts;
     private final Map<String, FailureDescription> failureDetails;
 
-    public Mutation(Method mutatedMethod) {
-        this.mutatedMethod = mutatedMethod;
+    public Mutation(String fileName, int lineNumber, String mutatedClassName, String mutatedMethodName,
+            String mutatedMethodDesc, int index, String mutatorName) {
         this.failingImpacts = new FailingTest[0];
         this.passingImpacts = new PassingTest[0];
         this.failureDetails = new HashMap<>();
+        this.fileName = fileName;
+        this.lineNumber = lineNumber;
+        this.mutatedClassName = mutatedClassName;
+        this.mutatedMethodName = mutatedMethodName;
+        this.mutatedMethodDesc = mutatedMethodDesc;
+        this.index = index;
+        this.mutatorName = mutatorName;
     }
     
     public void addKillingTest(final String qualifiedName, final FailureDescription desc) {
@@ -31,10 +44,6 @@ public class Mutation {
         return failureDetails.get(t.getQualifiedName());
     }
 
-    public Method getMutatedMethod() {
-        return mutatedMethod;
-    }
-    
     public int getSizeOfFailingImpacts() {
         return failingImpacts.length;
     }
@@ -139,5 +148,33 @@ public class Mutation {
             return tfe / Math.sqrt((tfe + tpe) * tf);
         }
         return 0;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    public String getMutatedClassName() {
+        return mutatedClassName;
+    }
+
+    public String getMutatedMethodName() {
+        return mutatedMethodName;
+    }
+
+    public String getMutatedMethodDesc() {
+        return mutatedMethodDesc;
+    }
+
+    public String getMutatorName() {
+        return mutatorName;
+    }
+
+    public int getIndex() {
+        return index;
     }
 }
