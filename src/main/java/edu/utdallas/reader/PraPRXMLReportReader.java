@@ -9,7 +9,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.zip.GZIPInputStream;
 
-public final class PraPRXMLReportReader {
+public class PraPRXMLReportReader {
     private final BufferedReader br;
 
     public PraPRXMLReportReader(final String xmlFileName) throws Exception {
@@ -218,7 +218,7 @@ public final class PraPRXMLReportReader {
                 final String mutationDescriptionElement = line.substring(0, indexOfClosingTag);
                 mutationDescription = getMutationDescription(mutationDescriptionElement);
             }
-            visitor.visit(status,
+            visitor.visitMutation(status,
                     sourceFileName,
                     mutatedClassJavaName,
                     mutatedMethodName,
@@ -231,5 +231,9 @@ public final class PraPRXMLReportReader {
                     suspiciousnessValue,
                     mutationDescription);
         }
+    }
+
+    public void close() throws Exception {
+        this.br.close();
     }
 }
